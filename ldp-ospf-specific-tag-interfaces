@@ -1,0 +1,38 @@
+protocols {
+    replace: ldp {
+    interface lo0.0;
+}
+    replace: ospf {
+        area 0.0.0.0 {
+            interface lo0.0 {
+                passive;
+            }
+        }
+    }
+}
+
+{% for interface_name,interface_dict in interfaces.items() %}
+  {% if  "mpls_interface" in interface_dict.link_tags%}
+interfaces {
+    {{interface_name}} {
+    unit 0 {
+        family mpls;
+        }
+    }
+}
+protocols {
+    ldp {
+        interface {{interface_name}}.0;
+    }
+    mpls {
+        interface {{interface_name}}.0;
+    }
+    ospf {
+        area 0.0.0.0 {
+            interface {{interface_name}}.0;
+        }
+    }
+}
+
+  {% endif %}
+{% endfor %}
