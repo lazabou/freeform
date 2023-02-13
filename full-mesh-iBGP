@@ -1,0 +1,27 @@
+{% set local_IP = function.get_resource_value(resources, 'Loopback', 'MyNetwork', 'Backbone_devices') %}
+{% set local_IP_no_mask = local_IP.split('/') %}
+protocols {
+    bgp {
+        group full_mesh {
+            type internal;
+            local-address {{local_IP_no_mask[0]}};
+            family inet {
+                unicast;
+            }
+        }
+    }
+}
+protocols {
+    bgp {
+        group full_mesh {
+        {% for system, system_dict in all_resources.items() %}
+            {% for loopback in function.get_all_resources(all_resources[system], 'Loopback', 'MyNetwork', 'Backbone_devices') %}
+            {% if loopback['value'] != local_IP %}
+                {% set IP = loopback['value'].split('/') %}
+                neighbor {{IP[0]}};
+            {% endif %}
+            {% endfor %}
+        {% endfor %}
+        }
+    }
+}
