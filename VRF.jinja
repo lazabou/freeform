@@ -33,11 +33,21 @@ routing-instances {{ns.name}} {
                 {%- for nb in iface.get('neighbor_interfaces') -%}
                     {%- if nb['system_id'] == vrf_member %}
     interface {{ interface_name }}.0;
+    protocols {
+        bgp {
+            group CE {
+                        {% set peer_asn = function.get_resource_value(all_resources[vrf_member], 'ASN', 'MyNetwork', 'External_Devices') %}
+                peer-as {{peer_asn}};
+                neighbor {{nb['ipv4_address']}};
+            }
+        }
+    }
                     {% endif -%}
                 {%- endfor -%}
             {%- endif -%} 
         {%- endfor -%}
     {% endfor %}
+
     }
     {% endfor %}   
 {%- endif -%}
