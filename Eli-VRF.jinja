@@ -1,0 +1,33 @@
+{% set all_vrf = function.get_resource(resources,'VRFs','MyNetwork')%}
+    {% if all_vrf|length %}
+    {% set loopback_ipv4 = function.get_resource_value(resources, 'Loopback', 'MyNetwork', 'Backbone_devices' ) %}
+    {% set loopback_no_mask = loopback_ipv4.split('/') %}
+    {% set asn = function.get_resource_value(resources, 'Backbone-ASN', 'MyNetwork' ) %}
+    
+    {%for get_vrfs in all_vrf['groups'] %}
+        {% set ns = namespace() %}
+        {% set ns.name = "" %}
+        {%for vrf_name in get_vrfs['label'] %}
+            {% set ns.name = ns.name + vrf_name %}
+        {% endfor %} 
+    {% set RT_RD = function.get_resource_value(resources,'RT_RD','MyNetwork', 'VRFs', ns.name) %}
+    {% set VRF_loopback = function.get_resource_value(resources, 'VRF_LB', 'MyNetwork', 'VRFs', ns.name) %}
+edit interfaces {
+    lo0 {
+        unit {{RT_RD}} {
+            family inet {
+                    address {{VRF_loopback}};
+                }
+            }
+        }
+    }
+}
+edit routing-instances {{ns.name}} {
+    instance-type vrf;    
+    interfaces lo0.{{RT_RD}};
+    route-distinguisher {{loopback_no_mask[0]}}:{{RT_RD}};
+    vrf-target target:{{asn}}:{{RT_RD}};
+    vrf-table-label;
+}
+    {% endfor %}   
+{% endif %}
