@@ -1,15 +1,14 @@
 {% set all_vrf = function.get_resource(resources,'VRFs','MyNetwork')%}
-    {% if all_vrf|length %}
+{%- if all_vrf|length -%}
     {% set loopback_ipv4 = function.get_resource_value(resources, 'Loopback', 'MyNetwork', 'Backbone_devices' ) %}
     {% set loopback_no_mask = loopback_ipv4.split('/') %}
     {% set asn = function.get_resource_value(resources, 'Backbone-ASN', 'MyNetwork' ) %}
-    
-    {%for get_vrfs in all_vrf['groups'] %}
+    {%- for get_vrfs in all_vrf['groups'] -%}
         {% set ns = namespace() %}
         {% set ns.name = "" %}
-        {%for vrf_name in get_vrfs['label'] %}
+        {%- for vrf_name in get_vrfs['label'] -%}
             {% set ns.name = ns.name + vrf_name %}
-        {% endfor %} 
+        {%- endfor -%} 
     {% set RT_RD = function.get_resource_value(resources,'RT_RD','MyNetwork', 'VRFs', ns.name) %}
     {% set VRF_loopback = function.get_resource_value(resources, 'VRF_LB', 'MyNetwork', 'VRFs', ns.name) %}
 interfaces {
@@ -27,6 +26,18 @@ routing-instances {{ns.name}} {
     route-distinguisher {{loopback_no_mask[0]}}:{{RT_RD}};
     vrf-target target:{{asn}}:{{RT_RD}};
     vrf-table-label;
-}
+    {% set ALL_VRF_info = function.get_resource(resources,ns.name, 'MyNetwork', 'VRFs') %}
+    {%- for vrf_member in ALL_VRF_info['assigned_to'] -%} 
+        {%- for interface_name, iface in interfaces.iteritems() -%}
+            {%- if iface.get('neighbor_interfaces') -%}
+                {%- for nb in iface.get('neighbor_interfaces') -%}
+                    {%- if nb['system_id'] == vrf_member %}
+    interface {{ interface_name }}.0;
+                    {% endif -%}
+                {%- endfor -%}
+            {%- endif -%} 
+        {%- endfor -%}
+    {% endfor %}
+    }
     {% endfor %}   
-{% endif %}
+{%- endif -%}
