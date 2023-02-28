@@ -31,7 +31,7 @@ routing-instances {{ns.name}} {
         {%- for interface_name, iface in interfaces.iteritems() -%}
             {%- if iface.get('neighbor_interfaces') -%}
                 {%- for nb in iface.get('neighbor_interfaces') -%}
-                    {%- if nb['system_id'] == vrf_member %}
+                    {%- if (nb['system_id'] == vrf_member) and (nb['link_role'] == "external") %}
     interface {{ interface_name }}.0;
     protocols {
         bgp {
@@ -47,7 +47,6 @@ routing-instances {{ns.name}} {
             {%- endif -%} 
         {%- endfor -%}
     {% endfor %}
-
-    }
+}
     {% endfor %}   
 {%- endif -%}
