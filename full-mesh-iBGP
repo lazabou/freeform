@@ -5,7 +5,7 @@ protocols {
         group full_mesh {
             type internal;
             local-address {{local_IP_no_mask[0]}};
-            family inet {
+            family inet-vpn {
                 unicast;
             }
         }
