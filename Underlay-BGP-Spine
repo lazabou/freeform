@@ -1,0 +1,29 @@
+{% set SPINE_ASN = function.get_resource_value(resources,'Underlay-ASN', 'BT' ) %}
+
+
+protocols {
+    bgp {
+        group underlay {
+            type external;
+            mtu-discovery;
+            import bgp-loopbacks-in;
+            export bgp-loopback-out;
+            local-as {{SPINE_ASN}};
+            multipath {
+                    multiple-as;
+            }
+            {% for interface_name, iface in interfaces.iteritems() %}
+                {% if iface.get('neighbor_interfaces') %}
+                    {% for nb in iface.get('neighbor_interfaces') %}
+                        {% if (nb['link_role'] == "internal") %}
+                   {% set PEER_ASN = function.get_resource_value(all_resources[nb['system_id']], 'ASN-Clients', 'BT', 'RR_clients') %}
+            neighbor {{nb['ipv4_address']}} {
+                    peer-as {{PEER_ASN}}; 
+            }
+                     {% endif %}
+                {%- endfor -%}
+            {%- endif -%} 
+        {% endfor %}
+        }
+    }
+}
