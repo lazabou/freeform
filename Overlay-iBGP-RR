@@ -1,0 +1,60 @@
+{% set local_IP = function.get_resource_value(resources, 'Loopback', 'BT') %}
+{% set local_IP_no_mask = local_IP.split('/') %}
+
+{% set Overlay_ASN = function.get_resource_value(resources, 'Overlay_ASN', 'BT') %}
+routing-options {    
+ replace: autonomous-system {{Overlay_ASN}};
+}
+{% if 'route_reflector' in system_tags %}
+protocols {
+    bgp {
+        group Overlay_RR {
+            type internal;
+            local-address {{local_IP_no_mask[0]}};
+            cluster {{local_IP_no_mask[0]}};
+            family evpn {
+                signaling;
+            }
+            bfd-liveness-detection {
+                minimum-interval 500;
+            }
+            {% for system, system_dict in all_resources.items() %}
+                {% if function.get_all_resources(all_resources[system], 'RR_clients', 'BT') %}
+                {% set RR_loopback = function.get_resource_value(all_resources[system], 'Loopback', 'BT') %}
+                {%set RR_no_mask = RR_loopback.split('/') %}
+            neighbor {{RR_no_mask[0]}};
+                {%endif%}
+            {% endfor %}
+        }
+
+    }
+}
+
+{% else %} 
+
+
+protocols {
+    bgp {
+        group Overlay_iBGP {
+            type internal;
+            local-address {{local_IP_no_mask[0]}};
+            family evpn {
+                signaling;
+            }
+            bfd-liveness-detection {
+                minimum-interval 500;
+            }
+            {% for system, system_dict in all_resources.items() %}
+                {% if function.get_all_resources(all_resources[system], 'RR', 'BT') %}
+                {% set RR_loopback = function.get_resource_value(all_resources[system], 'Loopback', 'BT') %}
+                {%set RR_no_mask = RR_loopback.split('/') %}
+            neighbor {{RR_no_mask[0]}};
+                {%endif%}
+            {% endfor %}
+        }
+
+    }
+}
+
+
+{% endif %}
