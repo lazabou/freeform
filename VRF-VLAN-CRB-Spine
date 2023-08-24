@@ -1,0 +1,81 @@
+{%- set all_vrf = function.get_resource(resources,'VRFs','BT')%}
+{%- if all_vrf|length -%}
+    {% set loopback_ipv4 = function.get_resource_value(resources, 'Loopback', 'BT' ) %}
+    {% set loopback_no_mask = loopback_ipv4|to_ip %}
+    {% set asn = function.get_resource_value(resources, 'Overlay_ASN', 'BT' ) %}
+    {% set rr_id = function.get_resource_value(resources, 'RR_ID', 'BT', 'RR') %}
+    {% for get_vrfs in all_vrf['groups'] -%}
+        {%- set ns = namespace() %}
+        {%- set ns.name = "" %}
+        {%- set ns.vlan_id = "" %}
+        {%- set ns.ip = "" %}
+        {%- for vrf_name in get_vrfs['label'] -%}
+            {%- set ns.name = ns.name + vrf_name %}
+        {%- endfor -%} 
+        {%- set RT_RD = function.get_resource_value(resources,'RT_RD','BT','VRFs', ns.name) %}
+
+routing-instances {{ns.name}} {
+    instance-type vrf;    
+    route-distinguisher {{loopback_no_mask}}:{{RT_RD}};
+    vrf-target target:{{asn}}:{{RT_RD}};
+    vrf-table-label;
+}
+        {% set VRF_INFO = function.get_all_resources(resources,ns.name, 'BT', 'VRFs') %}
+        {% for INFOS in VRF_INFO  %} 
+            {%- for get_vlans in INFOS['groups'] -%}
+                {%- for item in get_vlans['resources']  %}  
+                    {%- if item['resource_type'] == 'ip' %} 
+                        {%- set ns.ip = item['value'] %}
+                    {%- endif %}  
+                    {%- if item['resource_type'] == 'vlan' %} 
+                        {%- set ns.vlan_id = item['value'] %}
+                    {%- endif %}
+                {% endfor %}
+routing-instances {{ns.name}} {
+    interface irb.{{ns.vlan_id}};
+}
+vlans {
+    {{get_vlans['label']}} {
+        vlan-id {{ns.vlan_id}};
+        l3-interface irb.{{ns.vlan_id}};
+        vxlan {
+            vni {{ns.vlan_id}};
+        }
+    }
+}
+protocols {
+    evpn {
+        vni-options {
+            vni {{ns.vlan_id}} {
+                vrf-target target:{{asn}}:{{ns.vlan_id}};
+            }
+        }
+    }
+}
+interfaces {
+    irb {
+        unit {{ns.vlan_id}} {
+            virtual-gateway-accept-data;
+            family inet {
+{% set prefix_len = ns.ip|to_prefixlen %}
+{% set ip = ns.ip.split('.') %}
+{% set my_irb_int = ip[3]|int+1+rr_id|int%}
+{% set my_gw_int = ip[3]|int+1%}
+{% set my_irb = ip[0]+"."+ip[1]+"."+ip[2]+"."+my_irb_int|string %}
+{% set my_gw = ip[0]+"."+ip[1]+"."+ip[2]+"."+my_gw_int|string %}
+
+
+                address {{my_irb}}/{{prefix_len}} {
+                    preferred;
+                    virtual-gateway-address {{my_gw}} ;
+                }
+            }
+            mac a2:aa:aa:b0:01:01;
+            virtual-gateway-v4-mac 00:a0:a0:a0:01:0{{RT_RD}};
+        }
+    }
+}
+            {% endfor %} 
+        {%- endfor %} 
+    {%- endfor %} 
+{%- endif %}   
