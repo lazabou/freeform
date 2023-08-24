@@ -1,0 +1,62 @@
+{%- set all_vrf = function.get_resource(resources,'VRFs','BT')%}
+{% set asn = function.get_resource_value(resources, 'Overlay_ASN', 'BT' ) %}
+{%- if all_vrf|length -%}
+    {% for get_vrfs in all_vrf['groups'] -%}
+        {%- set ns = namespace() %}
+        {%- set ns.name = "" %}
+        {%- set ns.vlan_id = "" %}
+        {%- for vrf_name in get_vrfs['label'] -%}
+            {%- set ns.name = ns.name + vrf_name %}
+        {%- endfor -%} 
+
+        {% set VRF_INFO = function.get_all_resources(resources,ns.name, 'BT', 'VRFs') %}
+        {% for INFOS in VRF_INFO  %} 
+            {%- for get_vlans in INFOS['groups'] -%}
+                {%- for item in get_vlans['resources']  %}  
+                    {%- if item['resource_type'] == 'vlan' %} 
+                        {%- set ns.vlan_id = item['value'] %}
+                    {%- endif %}
+                {% endfor %}
+vlans {
+    {{get_vlans['label']}} {
+        vlan-id {{ns.vlan_id}};
+        vxlan {
+            vni {{ns.vlan_id}};
+        }
+    }
+}
+protocols {
+    evpn {
+        vni-options {
+            vni {{ns.vlan_id}} {
+                vrf-target target:{{asn}}:{{ns.vlan_id}};
+            }
+        }
+    }
+}
+                {% for members in get_vlans['assigned_to']  %}
+                    {%- for interface_name, iface in interfaces.items() -%}
+                        {%- if iface.get('neighbor_interfaces') -%}
+                            {%- for neighbor in iface.get('neighbor_interfaces') -%}
+                                {%- if (neighbor['system_id'] == members) and (neighbor['link_role'] == "external") %}
+interfaces {
+    {{ interface_name }} {
+        unit 0 {
+            family ethernet-switching {
+                interface-mode trunk;
+                vlan {
+                    members {{ns.vlan_id}};
+                }
+            }
+        }
+    }
+}
+                                {% endif %}
+                            {%- endfor %} 
+                        {%- endif %}
+                    {%- endfor %}
+                {%- endfor %}
+            {%- endfor %} 
+        {%- endfor %} 
+    {%- endfor %} 
+{% endif %}   
