@@ -21,7 +21,7 @@ protocols {
             {% for system, system_dict in all_resources.items() %}
                 {% if function.get_all_resources(all_resources[system], 'RR_clients', 'BT') %}
                 {% set RR_loopback = function.get_resource_value(all_resources[system], 'Loopback', 'BT') %}
-                {%set RR_no_mask = RR_loopback.split|to_ip %}
+                {%set RR_no_mask = RR_loopback|to_ip %}
             neighbor {{RR_no_mask}};
                 {%endif%}
             {% endfor %}
