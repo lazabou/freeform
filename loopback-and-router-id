@@ -8,7 +8,7 @@ interfaces {
         }
     }
 }
-{% set router_id = loopback_ipv4.split('/') %}
+{% set router_id = loopback_ipv4|to_ip %}
 routing-options {
-    replace: router-id {{router_id[0]}};
+    replace: router-id {{router_id}};
 }
