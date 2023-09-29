@@ -1,5 +1,5 @@
 {% set local_IP = function.get_resource_value(resources, 'Loopback', 'BT') %}
-{% set local_IP_no_mask = local_IP.split('/') %}
+{% set local_IP_no_mask = local_IP|to_ip %}
 
 {% set Overlay_ASN = function.get_resource_value(resources, 'Overlay_ASN', 'BT') %}
 routing-options {    
@@ -10,8 +10,8 @@ protocols {
     bgp {
         group Overlay_RR {
             type internal;
-            local-address {{local_IP_no_mask[0]}};
-            cluster {{local_IP_no_mask[0]}};
+            local-address {{local_IP_no_mask}};
+            cluster {{local_IP_no_mask}};
             family evpn {
                 signaling;
             }
@@ -21,8 +21,8 @@ protocols {
             {% for system, system_dict in all_resources.items() %}
                 {% if function.get_all_resources(all_resources[system], 'RR_clients', 'BT') %}
                 {% set RR_loopback = function.get_resource_value(all_resources[system], 'Loopback', 'BT') %}
-                {%set RR_no_mask = RR_loopback.split('/') %}
-            neighbor {{RR_no_mask[0]}};
+                {%set RR_no_mask = RR_loopback.split|to_ip %}
+            neighbor {{RR_no_mask}};
                 {%endif%}
             {% endfor %}
         }
@@ -37,7 +37,7 @@ protocols {
     bgp {
         group Overlay_iBGP {
             type internal;
-            local-address {{local_IP_no_mask[0]}};
+            local-address {{local_IP_no_mask}};
             family evpn {
                 signaling;
             }
@@ -47,8 +47,8 @@ protocols {
             {% for system, system_dict in all_resources.items() %}
                 {% if function.get_all_resources(all_resources[system], 'RR', 'BT') %}
                 {% set RR_loopback = function.get_resource_value(all_resources[system], 'Loopback', 'BT') %}
-                {%set RR_no_mask = RR_loopback.split('/') %}
-            neighbor {{RR_no_mask[0]}};
+                {%set RR_no_mask = RR_loopback|to_ip %}
+            neighbor {{RR_no_mask}};
                 {%endif%}
             {% endfor %}
         }
