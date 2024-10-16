@@ -1,0 +1,58 @@
+{%- set tenants_info = function.get_all_resources(resources,'Tenants','CLOUD')%}
+{% set loopback_ipv4 = function.get_resource_value(resources, 'Lo0', 'CLOUD' ) %}
+{% set loopback_no_mask = loopback_ipv4|to_ip %}
+{% for values in tenants_info %}
+    {% for tenants in values['resources'] %}
+routing-instances {{tenants['label']}} {
+    instance-type mac-vrf;
+    service-type vlan-bundle;
+    route-distinguisher {{loopback_no_mask}}:{{tenants['value']}};
+    vrf-target target:65000:{{tenants['value']}};
+    vtep-source-interface lo0.0;
+    protocols {
+        evpn {
+            encapsulation vxlan;
+            duplicate-mac-detection {
+                auto-recovery-time 9;
+            }
+            extended-vni-list all;
+        }
+    }
+    vlans {
+        VLAN {
+            vxlan {
+                vni 100{{tenants['value']}};
+            }
+        }
+    }
+}
+        
+        
+        {% for members in tenants['assigned_to']  %}
+            {%- for interface_name, iface in interfaces.items() -%}
+                {%- if not iface.part_of -%}
+                    {%- if iface.get('neighbor_interfaces') -%}
+                        {%- for neighbor in iface.get('neighbor_interfaces') -%}
+                            {%- if (neighbor['system_id'] == members) and (neighbor['link_role'] == "external") %}
+interfaces {
+    {{ interface_name }} {
+        encapsulation ethernet-bridge;
+        unit 0 ;
+    }
+}
+routing-instances {{tenants['label']}} {
+    vlans {
+        VLAN {
+            interface {{ interface_name }}.0;
+        }
+    }
+}
+                            {% endif %}
+                        {%- endfor %}
+                    {% endif %}
+                {%- endif %}
+            {%- endfor %}
+        {%- endfor %}
+    {% endfor %}
+{% endfor %}
+
